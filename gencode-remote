@@ -1,0 +1,4 @@
+# Reload is fast
+if grep -q "^__block/keepalive-vrrp" "$__messages_in"; then
+    echo /etc/init.d/keepalived reload
+fi

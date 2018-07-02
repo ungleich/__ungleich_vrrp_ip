@@ -1,0 +1,66 @@
+name="$__object_id"
+ipparam="$__object/parameter/ip"
+state="$(cat "$__object/parameter/state")"
+keepalived_state="$(cat "$__object/parameter/keepalived-state")"
+router_id="$(cat "$__object/parameter/router-id")"
+priority="$(cat "$__object/parameter/priority")"
+authpass="$(cat "$__object/parameter/auth-pass")"
+device="$(cat "$__object/parameter/device")"
+
+
+config=/etc/keepalived/keepalived.conf
+
+__package keepalived --state present
+
+__file /etc/keepalived/keepalived.conf \
+    --mode 0644 --state exists
+
+require="__package/keepalived" __start_on_boot keepalived
+
+mkdir "$__object/files"
+
+src="$__object/files/keepalived-block"
+
+cat << eof > "$src"
+vrrp_instance $name {
+    state $keepalived_state
+    interface $device
+    virtual_router_id $router_id
+    priority $priority
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass $authpass
+    }
+    virtual_ipaddress {
+eof
+
+while read ip; do
+    echo "        $ip " >> "$src"
+done < "$ipparam"
+
+cat << eof >> "$src"
+    }
+eof
+
+
+for file in backup fault master; do
+    if [ -f "$__object/parameter/notify_$file" ]; then
+        notify=$(cat "$__object/parameter/notify_$file")
+
+        echo "    notify_$file $notify" >> "$src"
+    fi
+done
+
+if [ -f "$__object/parameter/route" ]; then
+    echo "    virtual_routes {" >> "$src"
+    sed 's/^/        /' < "$__object/parameter/route" >> "$src"
+    echo "    }" >> "$src"
+fi
+
+
+echo '}' >> "$src"
+
+require="__file/etc/keepalived/keepalived.conf __package/keepalived" __block "keepalive-vrrp-$name" \
+    --file /etc/keepalived/keepalived.conf \
+    --state "$state" --text - < "$src"

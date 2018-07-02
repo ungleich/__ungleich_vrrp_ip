@@ -1,0 +1,4 @@
+state
+notify_master
+notify_backup
+notify_fault

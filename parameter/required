@@ -1,0 +1,5 @@
+keepalived-state
+router-id
+priority
+auth-pass
+device
